@@ -1,5 +1,7 @@
 #include <Wire.h>
 #include "RTClib.h"
+#include "src/schedule.h"
+#include "src/system_state.h"
 
 RTC_DS3231 rtc;
 
@@ -20,7 +22,7 @@ RTC_DS3231 rtc;
 #define BTN_LEFT     15
 #define BTN_RIGHT    16
 
-bool autoMode = true;   // start in AUTO
+// System state is now managed in SystemState struct
 
 void setup() {
   Serial.begin(115200);
@@ -48,57 +50,66 @@ void setup() {
 }
 
 void loop() {
-  // --- Mode selection ---
-  if (digitalRead(MODE_BTN) == LOW) {       // button pressed
-    delay(200);                             // debounce
-    autoMode = !autoMode;
-    Serial.println(autoMode ? "AUTO Mode" : "MANUAL Mode");
-    while (digitalRead(MODE_BTN) == LOW);   // wait for release
-  }
+  static SystemState st;
+  static bool lastModeBtnState = HIGH;
+  static unsigned long lastModeBtnTime = 0;
 
-  // --- PIR safety / UV ---
-  int motion = digitalRead(PIR_PIN);
-  if (motion == HIGH) {
-    digitalWrite(RELAY_PIN, LOW);           // UV off if human detected
+  // Read inputs
+  SystemInputs inputs;
+  
+  // Mode button with debounce
+  bool currentModeBtn = digitalRead(MODE_BTN);
+  if (currentModeBtn == LOW && lastModeBtnState == HIGH && 
+      (millis() - lastModeBtnTime) > 200) {
+    inputs.modeButtonPressed = true;
+    lastModeBtnTime = millis();
+    Serial.println(st.autoMode ? "Switching to MANUAL Mode" : "Switching to AUTO Mode");
   } else {
-    digitalWrite(RELAY_PIN, HIGH);          // UV on if no human
+    inputs.modeButtonPressed = false;
   }
+  lastModeBtnState = currentModeBtn;
 
-  if (autoMode) {
-    runAutoSchedule();
-  } else {
-    runManualControl();
+  inputs.pirMotionDetected = digitalRead(PIR_PIN) == HIGH;
+  inputs.btnForward = digitalRead(BTN_FWD) == LOW;
+  inputs.btnBackward = digitalRead(BTN_BWD) == LOW;
+  inputs.btnLeft = digitalRead(BTN_LEFT) == LOW;
+  inputs.btnRight = digitalRead(BTN_RIGHT) == LOW;
+
+  // Get time from RTC
+  DateTime now = rtc.now();
+  inputs.hour = now.hour();
+  inputs.minute = now.minute();
+
+  // Update system state
+  updateSystem(st, inputs);
+
+  // Apply outputs to hardware
+  digitalWrite(RELAY_PIN, st.relayOn ? HIGH : LOW);
+
+  switch (st.motors) {
+    case MotorsForward:
+      driveForward();
+      break;
+    case MotorsBackward:
+      driveBackward();
+      break;
+    case MotorsTurnLeft:
+      turnLeft();
+      break;
+    case MotorsTurnRight:
+      turnRight();
+      break;
+    case MotorsStop:
+    default:
+      stopMotors();
+      break;
   }
 
   delay(100);
 }
 
-// ----------------- AUTO Schedule -----------------
-void runAutoSchedule() {
-  DateTime now = rtc.now();
-  int h = now.hour();
-  int m = now.minute();
-
-  bool inSchedule = ((h==9  && m>=0) || (h>9 && h<10)) ||
-                    ((h==14 && m>=0) || (h>14 && h<15));
-
-  if (inSchedule) {
-    driveForward();
-    Serial.println("AUTO: Moving");
-  } else {
-    stopMotors();
-    Serial.println("AUTO: Idle");
-  }
-}
-
-// ----------------- MANUAL Control -----------------
-void runManualControl() {
-  if (digitalRead(BTN_FWD) == LOW) driveForward();
-  else if (digitalRead(BTN_BWD) == LOW) driveBackward();
-  else if (digitalRead(BTN_LEFT) == LOW) turnLeft();
-  else if (digitalRead(BTN_RIGHT) == LOW) turnRight();
-  else stopMotors();
-}
+// Note: Auto schedule and manual control logic is now in src/system_state.h
+// This allows the logic to be unit tested without hardware
 
 // ----------------- Motor helpers -----------------
 void driveForward() {
