@@ -738,12 +738,19 @@ test(Advanced_LoadBalancing) {
   SystemState st[3];
   SystemInputs in[3];
   
-  // Simulate load balancing across multiple instances
+  // Initialize all instances with same state
   for (int i = 0; i < 3; i++) {
+    st[i] = {};  // Initialize to default state
     st[i].autoMode = true;
+    in[i] = {};  // Initialize inputs
     in[i].hour = 9;
     in[i].minute = 30;
     in[i].pirMotionDetected = false;
+    in[i].modeButtonPressed = false;
+    in[i].btnForward = false;
+    in[i].btnBackward = false;
+    in[i].btnLeft = false;
+    in[i].btnRight = false;
     updateSystem(st[i], in[i]);
   }
   
@@ -919,10 +926,17 @@ test(Advanced_DistributedCoordination) {
   
   // Simulate distributed system with 5 nodes
   for (int node = 0; node < 5; node++) {
+    st[node] = {};  // Initialize to default state
     st[node].autoMode = true;
+    in[node] = {};  // Initialize inputs
     in[node].hour = 9;
     in[node].minute = 30;
     in[node].pirMotionDetected = false;
+    in[node].modeButtonPressed = false;
+    in[node].btnForward = false;
+    in[node].btnBackward = false;
+    in[node].btnLeft = false;
+    in[node].btnRight = false;
     updateSystem(st[node], in[node]);
   }
   
