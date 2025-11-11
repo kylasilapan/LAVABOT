@@ -51,6 +51,15 @@ jobs:
           find EpoxyDuino -name "Print.h" -type f || echo "Print.h not found in expected locations"
           echo "Looking for EpoxyDuino.h..."
           find EpoxyDuino -name "EpoxyDuino.h" -type f || echo "EpoxyDuino.h not found"
+          echo "Looking for main.cpp..."
+          find EpoxyDuino -name "main.cpp" -type f || echo "main.cpp not found"
+          if [ -f "EpoxyDuino/main.cpp" ]; then
+            echo "✓ Found EpoxyDuino/main.cpp"
+          elif [ -f "EpoxyDuino/src/main.cpp" ]; then
+            echo "✓ Found EpoxyDuino/src/main.cpp"
+          else
+            echo "✗ main.cpp not found in expected locations"
+          fi
 
       - name: Build tests
         working-directory: tests/host
