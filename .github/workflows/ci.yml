@@ -80,11 +80,19 @@ jobs:
             LABVABOT
         continue-on-error: false
 
+      - name: Prepare artifact name
+        if: success()
+        id: artifact-name
+        run: |
+          ARTIFACT_NAME="firmware-$(echo '${{ matrix.fqbn }}' | tr ':' '-')"
+          echo "name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+          echo "Artifact name: $ARTIFACT_NAME"
+
       - name: Upload artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ matrix.fqbn }}
+          name: ${{ steps.artifact-name.outputs.name }}
           path: build
           if-no-files-found: ignore
           retention-days: 7
