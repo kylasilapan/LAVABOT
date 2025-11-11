@@ -38,8 +38,8 @@ EP_IMPL_SRCS := $(shell find $(EP_DIR)/cores/epoxy -name "*.cpp" -type f 2>/dev/
 EP_IMPL_OBJS := $(patsubst $(EP_DIR)/cores/epoxy/%.cpp,%_epoxy.o,$(EP_IMPL_SRCS))
 
 # Test source files
-TEST_SRCS := test_schedule.cpp test_system_state.cpp test_durability.cpp
-TEST_OBJS := test_schedule.o test_system_state.o test_durability.o
+TEST_SRCS := test_schedule.cpp test_system_state.cpp test_durability.cpp test_integration.cpp
+TEST_OBJS := test_schedule.o test_system_state.o test_durability.o test_integration.o
 
 # All object files
 OBJS := $(TEST_OBJS) $(AUNIT_OBJS) $(EP_IMPL_OBJS)
