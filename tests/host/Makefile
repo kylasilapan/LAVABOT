@@ -28,7 +28,10 @@ endif
 
 # Find AUnit source files
 AUNIT_SRCS := $(shell find $(AUNIT_DIR)/src -name "*.cpp" -type f 2>/dev/null)
-AUNIT_OBJS := $(AUNIT_SRCS:$(AUNIT_DIR)/src/%.cpp=aunit_%.o)
+# Convert full paths to simple object names: AUnit/src/aunit/TestAgain.cpp -> aunit_TestAgain.o
+# Extract just the filename and create object name
+AUNIT_OBJS := $(foreach src,$(AUNIT_SRCS),$(patsubst %.cpp,%.o,$(notdir $(src))))
+AUNIT_OBJS := $(addprefix aunit_,$(AUNIT_OBJS))
 
 # Find EpoxyDuino implementation files (cores/epoxy/*.cpp, excluding main.cpp)
 EP_IMPL_SRCS := $(shell find $(EP_DIR)/cores/epoxy -name "*.cpp" -type f 2>/dev/null | grep -v main.cpp)
@@ -55,9 +58,14 @@ $(APP): $(OBJS)
 test_%.o: test_%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Pattern rule for AUnit source files
-aunit_%.o: $(AUNIT_DIR)/src/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Create explicit rules for each AUnit source file
+define AUNIT_RULE
+aunit_$(notdir $(1:.cpp=.o)): $(1)
+	@echo "Compiling AUnit: $$< -> $$@"
+	$$(CXX) $$(CXXFLAGS) -c $$< -o $$@
+endef
+
+$(foreach src,$(AUNIT_SRCS),$(eval $(call AUNIT_RULE,$(src))))
 
 # Pattern rule for EpoxyDuino implementation files
 %_epoxy.o: $(EP_DIR)/cores/epoxy/%.cpp
