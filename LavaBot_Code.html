@@ -1,0 +1,234 @@
+#include <ESP8266WiFi.h>
+    #include <ESP8266WebServer.h>
+    #include <time.h>  // For NTP and time handling
+    
+    // ---------- WiFi Credentials ----------
+    const char* ssid     = "HUAWEI-sGJ3";
+    const char* password = "5VneQzsk";
+    
+    // ---------- Web Server ----------
+    ESP8266WebServer server(80);
+    
+    // ---------- Motor Pins ----------
+    #define LPWM_L 4   // D2
+    #define RPWM_L 5   // D1
+    #define LPWM_R 14  // D5
+    #define RPWM_R 12  // D6
+    
+    // ---------- Relay & PIR ----------
+    #define RELAY_PIN 16  // D0
+    #define PIR_PIN   13  // D7
+    
+    // ---------- Variables ----------
+    int speedValue = 50; // Default speed
+    String pirStatus = "No Motion";
+    time_t scheduledTime = 0; // Timestamp for scheduled operation
+    bool scheduleSet = false;
+    
+    // ---------- HTML Web Page ----------
+    String htmlPage() {
+      String html = R"rawliteral(
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>ESP8266 Car + Relay + PIR + Scheduler</title>
+        <style>
+          body { font-family: Arial; text-align: center; background: #202124; color: white; }
+          button {
+            width: 100px; height: 50px; margin: 8px; font-size: 16px;
+            border-radius: 10px; background: #3c4043; color: white; border: none; cursor: pointer;
+          }
+          button:hover { background: #5f6368; }
+          .relay { background: #1a73e8; }
+          .relay:hover { background: #4285f4; }
+          .speed { background: #34a853; }
+          .speed:hover { background: #66bb6a; }
+          .status { margin-top: 20px; font-size: 20px; color: #00c853; }
+          input, label { font-size: 16px; margin: 5px; }
+          .card { border: 1px solid #5f6368; border-radius: 15px; padding: 15px; margin: 15px auto; width: 90%; max-width: 400px; background: #303134; }
+        </style>
+        <script>
+          async function updatePIR() {
+            const res = await fetch('/pir');
+            const text = await res.text();
+            document.getElementById('pirStatus').innerText = text;
+          }
+          setInterval(updatePIR, 2000);
+    
+          async function setSchedule() {
+            const dt = document.getElementById('datetime').value;
+            if (!dt) return alert('Please select a date and time');
+            const res = await fetch('/setSchedule?datetime=' + encodeURIComponent(dt));
+            const text = await res.text();
+            alert(text);
+          }
+        </script>
+      </head>
+      <body>
+        <h2>LAVABOT: AN IOT-BASED AUTOMATIC AND REMOTE-CONTROLLED LAVATORY SANITATION DEVICE USING ULTRAVIOLET-RAYS</h2>
+    
+        <div class="card">
+          <h3>Movement Control</h3>
+          <p><button onclick="fetch('/forward')">Forward</button></p>
+          <p>
+            <button onclick="fetch('/left')">Left</button>
+            <button onclick="fetch('/stop')">Stop</button>
+            <button onclick="fetch('/right')">Right</button>
+          </p>
+          <p><button onclick="fetch('/backward')">Backward</button></p>
+        </div>
+    
+        <div class="card">
+          <h3>Speed Control</h3>
+          <button class="speed" onclick="fetch('/speed/50')">Slow</button>
+          <button class="speed" onclick="fetch('/speed/150')">Medium</button>
+          <button class="speed" onclick="fetch('/speed/255')">Fast</button>
+        </div>
+    
+        <div class="card">
+          <h3>Turn On Uvy</h3>
+          <button class="relay" onclick="fetch('/relay_on')">ON</button>
+          <button class="relay" onclick="fetch('/relay_off')">OFF</button>
+        </div>
+    
+        <div class="card">
+          <h3>Automatic Scheduler</h3>
+          <label for="datetime">Set Date & Time:</label><br>
+          <input type="datetime-local" id="datetime">
+          <br><br>
+          <button onclick="setSchedule()">Set Schedule</button>
+          <p id="scheduleStatus"></p>
+        </div>
+    
+        <div class="status">
+          <p>PIR Status: <span id="pirStatus">Loading...</span></p>
+        </div>
+      </body>
+      </html>
+      )rawliteral";
+      return html;
+    }
+    
+    // ---------- Motor Control ----------
+    void stopMotors() {
+      analogWrite(LPWM_L, 0);
+      analogWrite(RPWM_L, 0);
+      analogWrite(LPWM_R, 0);
+      analogWrite(RPWM_R, 0);
+    }
+    void forward() {
+      analogWrite(LPWM_L, speedValue);
+      analogWrite(RPWM_L, 0);
+      analogWrite(LPWM_R, speedValue);
+      analogWrite(RPWM_R, 0);
+    }
+    void backward() {
+      analogWrite(LPWM_L, 0);
+      analogWrite(RPWM_L, speedValue);
+      analogWrite(LPWM_R, 0);
+      analogWrite(RPWM_R, speedValue);
+    }
+    void left() {
+      analogWrite(LPWM_L, 0);
+      analogWrite(RPWM_L, speedValue);
+      analogWrite(LPWM_R, speedValue);
+      analogWrite(RPWM_R, 0);
+    }
+    void right() {
+      analogWrite(LPWM_L, speedValue);
+      analogWrite(RPWM_L, 0);
+      analogWrite(LPWM_R, 0);
+      analogWrite(RPWM_R, speedValue);
+    }
+    
+    // ---------- Relay Control ----------
+    void relayOn() {
+      digitalWrite(RELAY_PIN, HIGH);
+      server.send(200, "text/plain", "Relay ON");
+    }
+    void relayOff() {
+      digitalWrite(RELAY_PIN, LOW);
+      server.send(200, "text/plain", "Relay OFF");
+    }
+    
+    // ---------- PIR ----------
+    void handlePirStatus() {
+      int state = digitalRead(PIR_PIN);
+      pirStatus = (state == HIGH) ? "Motion Detected" : "No Motion";
+      server.send(200, "text/plain", pirStatus);
+    }
+    
+    // ---------- Speed Control ----------
+    void handleSpeed() {
+      String path = server.uri();
+      int idx = path.lastIndexOf("/");
+      speedValue = path.substring(idx + 1).toInt();
+      speedValue = constrain(speedValue, 0, 255);
+      server.send(200, "text/plain", "Speed set to " + String(speedValue));
+    }
+    
+    // ---------- Schedule Handler ----------
+    void handleSetSchedule() {
+      if (!server.hasArg("datetime")) {
+        server.send(400, "text/plain", "Missing datetime argument");
+        return;
+      }
+      String datetime = server.arg("datetime");
+      struct tm tm;
+      strptime(datetime.c_str(), "%Y-%m-%dT%H:%M", &tm);
+      scheduledTime = mktime(&tm);
+      scheduleSet = true;
+      Serial.print("Scheduled operation at: ");
+      Serial.println(ctime(&scheduledTime));
+      server.send(200, "text/plain", "Schedule set for " + datetime);
+    }
+    
+    // ---------- Setup ----------
+    void setup() {
+      Serial.begin(115200);
+      pinMode(LPWM_L, OUTPUT);
+      pinMode(RPWM_L, OUTPUT);
+      pinMode(LPWM_R, OUTPUT);
+      pinMode(RPWM_R, OUTPUT);
+      stopMotors();
+    
+      pinMode(RELAY_PIN, OUTPUT);
+      digitalWrite(RELAY_PIN, LOW);
+      pinMode(PIR_PIN, INPUT);
+    
+      WiFi.begin(ssid, password);
+      Serial.print("Connecting to WiFi");
+      while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+      Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+    
+      // NTP setup
+      configTime(8 * 3600, 0, "pool.ntp.org");  // UTC+8 (Philippines)
+      Serial.println("NTP time sync...");
+    
+      // Routes
+      server.on("/", []() { server.send(200, "text/html", htmlPage()); });
+      server.on("/forward", []() { forward(); server.send(200, "text/plain", "Forward"); });
+      server.on("/backward", []() { backward(); server.send(200, "text/plain", "Backward"); });
+      server.on("/left", []() { left(); server.send(200, "text/plain", "Left"); });
+      server.on("/right", []() { right(); server.send(200, "text/plain", "Right"); });
+      server.on("/stop", []() { stopMotors(); server.send(200, "text/plain", "Stop"); });
+      server.on("/relay_on", relayOn);
+      server.on("/relay_off", relayOff);
+      server.on("/pir", handlePirStatus);
+      server.on("/speed", handleSpeed);
+      server.on("/setSchedule", handleSetSchedule);
+      server.begin();
+      Serial.println("Web server started!");
+    }
+    
+    // ---------- Loop ----------
+    void loop() {
+      server.handleClient();
+    
+      if (scheduleSet && time(nullptr) >= scheduledTime) {
+        Serial.println("Scheduled time reached — performing operation!");
+        relayOn(); // You can replace with forward(), backward(), etc.
+        scheduleSet = false; // prevent repeating
+      }
+    }
