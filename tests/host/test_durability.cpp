@@ -302,6 +302,5 @@ test(DurabilityStateConsistency) {
   }
 }
 
-void setup() {}
-void loop() { TestRunner::run(); }
+// setup() and loop() are defined in test_schedule.cpp to avoid multiple definitions
 

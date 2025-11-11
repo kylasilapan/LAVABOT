@@ -26,8 +26,20 @@ ifeq ($(EP_MAIN),)
   EP_MAIN := $(shell find $(EP_DIR) -name "main.cpp" -type f 2>/dev/null | head -1)
 endif
 
-SRCS := test_schedule.cpp test_system_state.cpp test_durability.cpp
-OBJS := test_schedule.o test_system_state.o test_durability.o
+# Find AUnit source files
+AUNIT_SRCS := $(shell find $(AUNIT_DIR)/src -name "*.cpp" -type f 2>/dev/null)
+AUNIT_OBJS := $(AUNIT_SRCS:$(AUNIT_DIR)/src/%.cpp=aunit_%.o)
+
+# Find EpoxyDuino implementation files (cores/epoxy/*.cpp, excluding main.cpp)
+EP_IMPL_SRCS := $(shell find $(EP_DIR)/cores/epoxy -name "*.cpp" -type f 2>/dev/null | grep -v main.cpp)
+EP_IMPL_OBJS := $(patsubst $(EP_DIR)/cores/epoxy/%.cpp,%_epoxy.o,$(EP_IMPL_SRCS))
+
+# Test source files
+TEST_SRCS := test_schedule.cpp test_system_state.cpp test_durability.cpp
+TEST_OBJS := test_schedule.o test_system_state.o test_durability.o
+
+# All object files
+OBJS := $(TEST_OBJS) $(AUNIT_OBJS) $(EP_IMPL_OBJS)
 
 # Add EpoxyDuino main.cpp
 ifneq ($(EP_MAIN),)
@@ -41,6 +53,15 @@ $(APP): $(OBJS)
 
 # Pattern rule for local test files
 test_%.o: test_%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Pattern rule for AUnit source files
+aunit_%.o: $(AUNIT_DIR)/src/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Pattern rule for EpoxyDuino implementation files
+%_epoxy.o: $(EP_DIR)/cores/epoxy/%.cpp
+	@echo "Compiling EpoxyDuino: $<"
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Special rule for EpoxyDuino main.cpp (only if EP_MAIN is found)
@@ -58,5 +79,5 @@ run: $(APP)
 	./$(APP)
 
 clean:
-	rm -f $(APP) $(OBJS) epoxy_main.o
+	rm -f $(APP) $(OBJS) epoxy_main.o $(AUNIT_OBJS) $(EP_IMPL_OBJS)
 
