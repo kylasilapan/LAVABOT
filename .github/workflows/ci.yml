@@ -1,0 +1,81 @@
+name: Arduino CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fqbn:
+          - arduino:avr:uno
+          - arduino:avr:mega
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Arduino Lint
+        uses: arduino/arduino-lint-action@v1
+        with:
+          compliance: strict
+          library-manager: update
+          project-type: sketch
+          continue-on-failure: false
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v1.1.1
+
+      - name: Cache Arduino packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/.cache/arduino
+          key: ${{ runner.os }}-arduino-${{ matrix.fqbn }}-${{ hashFiles('**/*.ino', '**/*.h', '**/*.cpp') }}
+          restore-keys: |
+            ${{ runner.os }}-arduino-${{ matrix.fqbn }}-
+            ${{ runner.os }}-arduino-
+
+      - name: Install cores
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "RTClib"
+
+      - name: Verify source files exist
+        run: |
+          echo "Checking project structure..."
+          ls -la
+          test -f LABVABOT.ino || exit 1
+          test -f src/schedule.h || exit 1
+          test -f src/system_state.h || exit 1
+          echo "✓ All source files found"
+
+      - name: Compile
+        run: |
+          echo "Compiling for ${{ matrix.fqbn }}..."
+          arduino-cli compile \
+            --fqbn ${{ matrix.fqbn }} \
+            --warnings all \
+            --optimize-for-debug \
+            --output-dir build \
+            --verbose \
+            LABVABOT.ino
+        continue-on-error: false
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.fqbn }}
+          path: build
+          if-no-files-found: ignore
+          retention-days: 7

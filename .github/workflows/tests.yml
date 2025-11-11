@@ -1,0 +1,69 @@
+name: Host Unit Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make
+
+      - name: Verify test files exist
+        run: |
+          echo "Checking test structure..."
+          test -d tests/host || exit 1
+          test -f tests/host/test_schedule.cpp || exit 1
+          test -f tests/host/test_system_state.cpp || exit 1
+          test -f tests/host/test_durability.cpp || exit 1
+          test -f tests/host/Makefile || exit 1
+          test -f src/schedule.h || exit 1
+          test -f src/system_state.h || exit 1
+          echo "✓ All test files found"
+
+      - name: Fetch EpoxyDuino and AUnit
+        working-directory: tests/host
+        run: |
+          echo "Fetching test dependencies..."
+          if [ ! -d "EpoxyDuino" ]; then
+            git clone --depth=1 https://github.com/bxparks/EpoxyDuino.git
+          fi
+          if [ ! -d "AUnit" ]; then
+            git clone --depth=1 https://github.com/bxparks/AUnit.git
+          fi
+          echo "✓ Dependencies fetched"
+
+      - name: Build tests
+        working-directory: tests/host
+        run: |
+          echo "Building test suite..."
+          make clean || true
+          make
+          echo "✓ Build successful"
+
+      - name: Run tests
+        working-directory: tests/host
+        run: |
+          echo "Running test suite..."
+          ./test_schedule || exit 1
+          echo "✓ All tests passed"
+
+      - name: Test summary
+        if: always()
+        working-directory: tests/host
+        run: |
+          if [ -f test_schedule ]; then
+            echo "✓ Test executable created successfully"
+            ls -lh test_schedule
+          else
+            echo "✗ Test executable not found"
+          fi
