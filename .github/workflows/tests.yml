@@ -41,6 +41,16 @@ jobs:
             git clone --depth=1 https://github.com/bxparks/AUnit.git
           fi
           echo "✓ Dependencies fetched"
+          
+      - name: Verify EpoxyDuino structure
+        working-directory: tests/host
+        run: |
+          echo "Checking EpoxyDuino structure..."
+          ls -la EpoxyDuino/ | head -20
+          echo "Looking for Print.h..."
+          find EpoxyDuino -name "Print.h" -type f || echo "Print.h not found in expected locations"
+          echo "Looking for EpoxyDuino.h..."
+          find EpoxyDuino -name "EpoxyDuino.h" -type f || echo "EpoxyDuino.h not found"
 
       - name: Build tests
         working-directory: tests/host

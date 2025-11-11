@@ -1,3 +1,4 @@
+#include <EpoxyDuino.h>
 #include <AUnit.h>
 #include "../../src/system_state.h"
 
