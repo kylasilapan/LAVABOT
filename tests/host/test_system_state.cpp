@@ -228,11 +228,12 @@ test(InitialStateCorrectness) {
   assertFalse(st.relayOn);
   assertEqual(MotorsStop, st.motors);
 
-  // Verify initial state with no inputs
+  // After updateSystem with no motion detected, relay should turn ON (UV safe to operate)
+  // Default hour/minute (0,0) is outside schedule window, so motors stay stopped
   updateSystem(st, in);
-  assertTrue(st.autoMode);
-  assertFalse(st.relayOn);
-  assertEqual(MotorsStop, st.motors);
+  assertTrue(st.autoMode);  // Still in AUTO mode
+  assertTrue(st.relayOn);   // Relay ON because no motion detected (UV can operate)
+  assertEqual(MotorsStop, st.motors);  // Motors stopped (outside schedule window)
 }
 
 // setup() and loop() are defined in test_schedule.cpp to avoid multiple definitions
