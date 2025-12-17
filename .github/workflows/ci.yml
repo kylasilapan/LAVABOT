@@ -1,17 +1,22 @@
 name: ESP8266 Build Check
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install compiler
-      run: sudo apt update && sudo apt install -y g++
+      - name: Install compiler
+        run: sudo apt update && sudo apt install -y g++
 
-    - name: Build logic module
-      run: |
-        g++ -std=c++17 -Isrc -c src/lavabot_logic.cpp
+      - name: Build logic module
+        run: |
+          g++ -std=c++17 -Isrc -c src/lavabot_logic.cpp
