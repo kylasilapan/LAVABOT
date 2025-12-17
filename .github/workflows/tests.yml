@@ -1,18 +1,22 @@
 name: ESP8266 Unit Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install compiler
-      run: sudo apt update && sudo apt install -y g++
+      - name: Install compiler
+        run: sudo apt update && sudo apt install -y g++
 
-    - name: Run unit tests
-      run: |
-        g++ -std=c++17 -Isrc tests/test_lavabot_logic.cpp src/lavabot_logic.cpp -o test
-        ./test
+      - name: Run unit tests
+        run: |
+          g++ -std=c++17 -Isrc tests/test_lavabot_logic.cpp src/lavabot_logic.cpp -o test
+          ./test
