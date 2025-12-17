@@ -1,20 +1,20 @@
 #include "lavabot_logic.h"
 
 RobotState startAutoMode() {
-    return {
-        AUTO,
-        true,   // UV ON
-        false,  // Relay2 OFF
-        true    // Moving
-    };
+    RobotState state;
+    state.mode = AUTO;
+    state.uvOn = true;
+    state.relay2On = false;
+    state.moving = true;
+    return state;
 }
 
 RobotState triggerEmergencyStop() {
     return {
         EMERGENCY,
-        false,  // UV OFF
-        false,  // Relay2 OFF
-        false   // Not moving
+        false,
+        false,
+        false
     };
 }
 
@@ -30,8 +30,8 @@ RobotState resetEmergency() {
 RobotState finishUvCycle() {
     return {
         AUTO,
-        false,  // UV OFF
-        true,   // Relay2 ON
+        false,
+        true,
         false
     };
 }
