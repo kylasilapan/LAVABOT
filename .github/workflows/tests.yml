@@ -13,6 +13,7 @@ jobs:
       run: sudo apt update && sudo apt install -y g++
 
     - name: Run unit tests
-      run: |
-        g++ -std=c++17 tests/test_lavabot_logic.cpp src/lavabot_logic.cpp -o test
-        ./test
+  run: |
+    g++ -std=c++17 -I src tests/test_lavabot_logic.cpp src/lavabot_logic.cpp -o test
+    ./test
+
