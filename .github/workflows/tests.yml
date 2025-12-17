@@ -13,7 +13,6 @@ jobs:
       run: sudo apt update && sudo apt install -y g++
 
     - name: Run unit tests
-      working-directory: ${{ github.workspace }}
       run: |
         g++ -std=c++17 -Isrc tests/test_lavabot_logic.cpp src/lavabot_logic.cpp -o test
         ./test

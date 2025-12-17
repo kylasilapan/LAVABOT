@@ -7,10 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Compile check (logic only)
+    - name: Install compiler
+      run: sudo apt update && sudo apt install -y g++
+
+    - name: Build logic module
       run: |
-        echo "Build check passed (logic-only stage)"
-
+        g++ -std=c++17 -Isrc -c src/lavabot_logic.cpp
