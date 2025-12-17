@@ -1,1 +1,2 @@
 LavaBot
+CI/CD enabled
