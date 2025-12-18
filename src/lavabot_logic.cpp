@@ -5,7 +5,7 @@ RobotState startAutoMode() {
     state.mode = AUTO;
     state.uvOn = true;
     state.relay2On = false;
-    state.moving = false; // intentional defect
+    state.moving = true; // final and retest
     return state;
 }
 
